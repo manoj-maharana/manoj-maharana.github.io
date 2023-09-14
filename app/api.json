@@ -1,0 +1,6 @@
+{
+  "did_key": "PUT API KEY HERE",
+  "api2d_api_key": "PUT API KEY HERE",
+  "claude_api_key": "PUT CLAUDE API KEY HERE",
+  "chatgpt_key": "PUT GPT API KEY HERE"
+}
