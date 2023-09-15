@@ -1,6 +1,7 @@
 'use strict';
 // import DID_API from '../api.json' assert { type: 'json' };
 
+
 const RTCPeerConnection =(
   window.RTCPeerConnection ||
   window.webkitRTCPeerConnection ||
@@ -380,15 +381,66 @@ function onVideoStatusChange(videoIsPlaying, stream) {
 }
 
 // Event listener for track event
-function onTrack(event) {
-    if (!event.track) return;
+// function onTrack(event) {
+//     if (!event.track) return;
 
-    statsIntervalId = setInterval(async () => {
+//     statsIntervalId = setInterval(async () => {
+//       const stats = await peerConnection.getStats(event.track);
+//       stats.forEach((report) => {
+//         if (report.type === 'inbound-rtp' && report.mediaType === 'video') {
+//           const videoStatusChanged = videoIsPlaying !== report.bytesReceived > lastBytesReceived;
+  
+//           if (videoStatusChanged) {
+//             videoIsPlaying = report.bytesReceived > lastBytesReceived;
+//             onVideoStatusChange(videoIsPlaying, event.streams[0]);
+//           }
+//           lastBytesReceived = report.bytesReceived;
+//         }
+//       });
+//     }, 500);
+// }
+
+
+
+// Function to check if the track has been added to the PeerConnection
+function isTrackAddedToPeerConnection(peerConnection, track) {
+  const senders = peerConnection.getSenders();
+  const isTrackSender = senders.some(sender => sender.track === track);
+
+  const receivers = peerConnection.getReceivers();
+  const isTrackReceiver = receivers.some(receiver => receiver.track === track);
+
+  return isTrackSender || isTrackReceiver;
+}
+
+// Event listener for track event
+function onTrack(event) {
+  if (!event.track) return;
+
+  // Check if track is added to the PeerConnection
+  if (!isTrackAddedToPeerConnection(peerConnection, event.track)) {
+    console.error("Track not added to RTCPeerConnection");
+    return;
+  }
+
+  // Check if track is active
+  if (event.track.readyState === 'ended') {
+    console.error("Track is ended, cannot get stats");
+    return;
+  }
+
+  // Clear existing interval if any
+  if (statsIntervalId) {
+    clearInterval(statsIntervalId);
+  }
+
+  statsIntervalId = setInterval(async () => {
+    try {
       const stats = await peerConnection.getStats(event.track);
       stats.forEach((report) => {
         if (report.type === 'inbound-rtp' && report.mediaType === 'video') {
-          const videoStatusChanged = videoIsPlaying !== report.bytesReceived > lastBytesReceived;
-  
+          const videoStatusChanged = videoIsPlaying !== (report.bytesReceived > lastBytesReceived);
+
           if (videoStatusChanged) {
             videoIsPlaying = report.bytesReceived > lastBytesReceived;
             onVideoStatusChange(videoIsPlaying, event.streams[0]);
@@ -396,5 +448,10 @@ function onTrack(event) {
           lastBytesReceived = report.bytesReceived;
         }
       });
-    }, 500);
+    } catch (error) {
+      console.error("Failed to get stats: ", error);
+      clearInterval(statsIntervalId);
+    }
+  }, 500);
 }
+
